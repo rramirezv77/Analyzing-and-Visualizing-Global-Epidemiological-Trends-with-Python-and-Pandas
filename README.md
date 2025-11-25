@@ -17,3 +17,8 @@ python -m streamlit run filename.py
 # 4 Instalar modulo plotly (para ver los graficos)
 
 python -m pip install plotly
+
+# 4 Instalar módulos para perfilado de datos
+
+python -m pip install ydata-profiling -q
+python -m pip install ipywidgets
