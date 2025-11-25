@@ -6,11 +6,11 @@ from datetime import datetime
 @st.cache_data(ttl=3600)
 def load_data_simple():
     """
-    Carga datos desde el repositorio de JHU, inyecta fechas y corrige columnas duplicadas.
+    Carga datos desde el repositorio de JHU, inyecta fechas, corrige columnas y ASIGNA CONTINENTES.
     """
     # 1. Definir rango de fechas
     start_date = '2020-01-22' 
-    end_date = '2021-06-30'
+    end_date = '2020-03-30'
     
     date_range = pd.date_range(start=start_date, end=end_date)
     
@@ -67,7 +67,7 @@ def load_data_simple():
     cols_to_use = [c for c in cols_needed if c in df_final.columns]
     df_final = df_final[cols_to_use]
 
-    # Agrupación final
+    # Agrupación inicial por País y Fecha
     df_grouped = df_final.groupby(['country', 'date']).sum(numeric_only=True).reset_index()
     
     # Recálculo forzoso de Activos
@@ -76,7 +76,25 @@ def load_data_simple():
         
     df_grouped['active'] = df_grouped['confirmed'] - df_grouped['deceased'] - df_grouped['recovered']
     df_grouped['active'] = df_grouped['active'].clip(lower=0)
-    df_grouped['continent'] = 'Global'
+    
+    # --- ASIGNACIÓN DE CONTINENTES ---
+    # Diccionario manual simple para mapear países comunes a continentes
+    continent_map = {
+        'US': 'North America', 'Canada': 'North America', 'Mexico': 'North America',
+        'Brazil': 'South America', 'Argentina': 'South America', 'Chile': 'South America',
+        'Colombia': 'South America', 'Peru': 'South America',
+        'Spain': 'Europe', 'Italy': 'Europe', 'France': 'Europe', 'Germany': 'Europe',
+        'United Kingdom': 'Europe', 'Russia': 'Europe',
+        'China': 'Asia', 'Japan': 'Asia', 'India': 'Asia', 'Korea, South': 'Asia',
+        'Australia': 'Oceania',
+        'South Africa': 'Africa', 'Egypt': 'Africa', 'Nigeria': 'Africa'
+    }
+    
+    # Función para aplicar el mapa, con valor por defecto 'Other'
+    def get_continent(country):
+        return continent_map.get(country, 'Other')
+
+    df_grouped['continent'] = df_grouped['country'].apply(get_continent)
     
     status_text.empty()
     return df_grouped
