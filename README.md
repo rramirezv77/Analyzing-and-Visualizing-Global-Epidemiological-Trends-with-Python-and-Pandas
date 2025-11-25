@@ -35,5 +35,6 @@ py -m pip install pandas
 py -m pip install numpy
 py -m pip install seaborn
 py -m pip install dask
+pip install aiohttp -q
 py -m pip install ydata_profiling
 ```
