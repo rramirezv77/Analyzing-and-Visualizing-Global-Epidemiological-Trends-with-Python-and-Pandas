@@ -13,3 +13,7 @@ python -m pip install streamlit
 # 3 Ejecutar la app usando el módulo (evita depender del PATH)
 
 python -m streamlit run filename.py
+
+# 4 Instalar modulo plotly (para ver los graficos)
+
+python -m pip install plotly
