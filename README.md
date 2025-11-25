@@ -26,9 +26,24 @@ python -m streamlit run filename.py
 python -m pip install plotly
 ```
 
+<<<<<<< HEAD
 # 4 Instalar módulos para perfilado de datos
 
 ```py
 python -m pip install ydata-profiling -q
 python -m pip install ipywidgets
 ```
+=======
+# Puede que necesiten estas librerías
+
+```py
+pip install ipykernel -U
+py -m pip install ipykernel
+py -m pip install pandas
+py -m pip install numpy
+py -m pip install seaborn
+py -m pip install dask
+pip install aiohttp -q
+py -m pip install ydata_profiling
+```
+>>>>>>> 15ade3d76d13dbbeadec8f44b2e57d8fd5fe9d8d
