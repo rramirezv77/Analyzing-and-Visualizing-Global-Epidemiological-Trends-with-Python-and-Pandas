@@ -1,189 +1,171 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+import plotly.graph_objects as go
 
-# --- IMPORTACIONES LOCALES ---
+# --- IMPORTACIONES ---
 from data import load_data_simple
 from metrics import calculate_growth_and_rebound
+import ui
 
-# --- Configuración de la Página ---
-st.set_page_config(
-    page_title="Dashboard COVID-19 (Modular)",
-    page_icon="🦠",
-    layout="wide"
-)
+# --- CONFIGURACIÓN ---
+st.set_page_config(page_title="COVID Dashboard", page_icon="📊", layout="wide")
 
-# --- Ejecución: Carga de Datos ---
-with st.spinner('Cargando datos históricos...'):
+# 1. Inicializar Estado de Navegación
+if "page" not in st.session_state:
+    st.session_state["page"] = "dashboard"
+
+# 2. Estilos y Sidebar
+ui.setup_page_style()
+ui.render_sidebar()
+
+# 3. Carga de Datos Global
+with st.spinner('Cargando sistema...'):
     df_full = load_data_simple()
 
-if df_full.empty:
-    st.error("No se pudieron cargar los datos. Verifica tu conexión a internet.")
-    st.stop()
+if df_full.empty: st.stop()
 
-# --- UI: Título ---
-st.title("📊 Dashboard COVID-19 (Histórico)")
-st.markdown(f"Datos del periodo: **{df_full['date'].min().strftime('%d/%m/%Y')}** al **{df_full['date'].max().strftime('%d/%m/%Y')}**")
+# --- CONTROLADOR DE VISTAS ---
 
-# --- UI: Sidebar (Filtros) ---
-st.sidebar.header("Filtros")
+if st.session_state["page"] == "dashboard":
+    # ==========================================
+    # VISTA 1: DASHBOARD (Tu código original)
+    # ==========================================
+    ui.render_header(title="COVID-19 Overview", subtitle="Global Pandemic Tracking Dashboard")
 
-min_date = df_full['date'].min().date()
-max_date = df_full['date'].max().date()
+    # Filtros Dashboard
+    with st.container():
+        c1, c2, c3 = st.columns([1, 1, 2])
+        with c1:
+            min_d, max_d = df_full['date'].min().date(), df_full['date'].max().date()
+            d_input = st.date_input("Rango de Fechas", value=(min_d, max_d), min_value=min_d, max_value=max_d)
+        with c2:
+            avail_continents = sorted(df_full['continent'].unique())
+            sel_continents = st.multiselect("Filtrar Continentes", options=avail_continents, default=[]) 
+        with c3:
+            if sel_continents:
+                filtered_countries = df_full[df_full['continent'].isin(sel_continents)]['country'].unique()
+            else:
+                filtered_countries = df_full['country'].unique()
+            avail_countries = sorted(filtered_countries)
+            sel_countries = st.multiselect("Filtrar Países", options=avail_countries, default=[])
 
-date_input = st.sidebar.date_input(
-    "Rango de Fechas",
-    value=(min_date, max_date),
-    min_value=min_date,
-    max_value=max_date
-)
+    # Lógica de Filtrado
+    start, end = (pd.to_datetime(d_input[0]), pd.to_datetime(d_input[1])) if isinstance(d_input, tuple) and len(d_input) == 2 else (pd.to_datetime(min_d), pd.to_datetime(max_d))
 
-if isinstance(date_input, tuple) and len(date_input) == 2:
-    start_date, end_date = date_input
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
-else:
-    start_date = pd.to_datetime(min_date)
-    end_date = pd.to_datetime(max_date)
+    if sel_countries:
+        country_mask = df_full['country'].isin(sel_countries)
+    elif sel_continents:
+        country_mask = df_full['continent'].isin(sel_continents)
+    else:
+        country_mask = pd.Series(True, index=df_full.index)
 
-available_countries = sorted(df_full['country'].unique())
-default_countries = ['Mexico', 'Spain', 'Colombia', 'Argentina', 'Peru', 'Chile']
-default_selection = [c for c in default_countries if c in available_countries]
+    mask = (df_full['date'] >= start) & (df_full['date'] <= end) & country_mask
+    df_filtered = df_full[mask]
 
-selected_countries = st.sidebar.multiselect(
-    "Países",
-    options=available_countries,
-    default=default_selection if default_selection else available_countries[:3]
-)
+    if df_filtered.empty:
+        st.warning("No hay datos para los filtros seleccionados.")
+        st.stop()
 
-# --- Lógica de Filtrado ---
-mask = (
-    (df_full['date'] >= start_date) & 
-    (df_full['date'] <= end_date) & 
-    (df_full['country'].isin(selected_countries))
-)
-df_filtered = df_full[mask]
-
-# --- UI: Visualización Principal ---
-if df_filtered.empty:
-    st.warning("Selecciona al menos un país para ver los datos.")
-else:
-    # 1. Cálculos (Llamada al módulo metrics.py actualizado)
     timeline = df_filtered.groupby('date').sum(numeric_only=True).reset_index()
     insights, timeline_metrics = calculate_growth_and_rebound(timeline)
-    
-    # 2. Obtener totales para KPIs
-    last_day_data = df_filtered[df_filtered['date'] == end_date]
-    if last_day_data.empty: 
-        last_day_data = df_filtered.loc[df_filtered.groupby('country')['date'].idxmax()]
+    last_day = df_filtered[df_filtered['date'] == end].iloc[0] if not df_filtered[df_filtered['date'] == end].empty else df_filtered.iloc[-1]
 
-    total_confirmed = last_day_data['confirmed'].sum()
-    total_deceased = last_day_data['deceased'].sum()
-    total_active = last_day_data['active'].sum()
-    total_recovered = last_day_data['recovered'].sum()
-    
-    st.header("Resumen del Periodo")
+    # Iconos SVG
+    icon_users = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />'
+    icon_chart = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />'
+    icon_check = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />'
+    icon_alert = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />'
+    icon_trend_up = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />'
+    icon_trend_flat = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14" />'
 
-    # Fila 1: KPIs Generales
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Confirmados", f"{total_confirmed:,.0f}")
-    col2.metric("Activos", f"{total_active:,.0f}")
-    col3.metric("Recuperados", f"{total_recovered:,.0f}")
-    col4.metric("Fallecidos", f"{total_deceased:,.0f}")
-    
-    # Fila 2: Indicadores de Tendencia (Rebrote y Crecimiento)
-    st.markdown("### 📈 Indicadores de Tendencia")
-    col5, col6 = st.columns(2)
-    
-    col5.metric("Tasa de Crecimiento (Casos)", f"{insights.get('growth_rate', 0):.2%}")
-    
-    if insights.get('is_rebounding'):
-        col6.metric("Indicador de Rebrote", "⚠️ DETECTADO", delta="- Alerta", delta_color="inverse")
-    else:
-        col6.metric("Indicador de Rebrote", "🟢 Estable", delta="Sin riesgo", delta_color="normal")
+    # FILA 1: MÉTRICAS
+    st.markdown("<div class='mb-6'></div>", unsafe_allow_html=True)
+    k1, k2, k3, k4 = st.columns(4, gap="large")
+    with k1: ui.metric_card("Confirmados", f"{last_day['confirmed']:,.0f}", "Total Acumulado", icon_users, "purple")
+    with k2: ui.metric_card("Activos", f"{last_day['active']:,.0f}", "Casos Actuales", icon_chart, "blue")
+    with k3: ui.metric_card("Recuperados", f"{last_day['recovered']:,.0f}", "Alta Médica", icon_check, "green")
+    with k4: ui.metric_card("Fallecidos", f"{last_day['deceased']:,.0f}", "Total Bajas", icon_alert, "red")
 
-    # Gráficos
-    st.header("Evolución Temporal")
+    # FILA 2: INSIGHTS
+    st.markdown("<div class='mb-6'></div>", unsafe_allow_html=True)
+    i1, i2, i3 = st.columns([1, 1, 2], gap="large")
     
-    # Gráfico de Líneas Multivariable
-    fig_line = px.line(
-        timeline, 
-        x='date', 
-        y=['confirmed', 'active', 'recovered', 'deceased'], 
-        title="Curva de Evolución (Comparativa)",
-        labels={'value': 'Cantidad de Personas', 'variable': 'Indicador', 'date': 'Fecha'}
+    peak_val = insights.get('new_cases_peak_val', 0)
+    is_rebound = insights.get('is_rebounding', False)
+    growth = insights.get('growth_rate', 0)
+
+    with i1: ui.metric_card("Pico Máximo", f"{peak_val:,.0f}", "Casos/Día", icon_alert, "yellow")
+    with i2:
+        trend_icon = icon_trend_up if is_rebound else icon_trend_flat
+        trend_color = "red" if is_rebound else "green"
+        trend_text = "▲ ALZA" if is_rebound else "▼ ESTABLE"
+        ui.metric_card("Tendencia", trend_text, f"{growth:.1%} (7d)", trend_icon, trend_color)
+    with i3:
+        if is_rebound: ui.alert_card(is_rebound)
+        else: st.write("")
+
+    # FILA 3: GRÁFICOS
+    st.markdown("<div class='mb-6'></div>", unsafe_allow_html=True)
+    g1, g2 = st.columns(2, gap="large")
+    CHART_HEIGHT = 400
+
+    with g1:
+        fig = px.area(timeline, x='date', y=['recovered', 'active'], 
+                      color_discrete_map={'recovered': '#34d399', 'active': '#60a5fa'})
+        fig.add_trace(go.Scatter(x=timeline['date'], y=timeline['deceased'], line=dict(color='#f87171', width=2), name='deceased'))
+        fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, title=None))
+        ui.render_chart_card("Curva de Evolución Temporal", fig, height=CHART_HEIGHT)
+
+    with g2:
+        fig_bar = px.bar(timeline_metrics, x='date', y='new_cases')
+        fig_bar.update_traces(marker_color='#8b5cf6')
+        ui.render_chart_card("Nuevos Casos Diarios", fig_bar, height=CHART_HEIGHT)
+
+elif st.session_state["page"] == "table":
+    # ==========================================
+    # VISTA 2: TABLA DE DATOS (Nuevo Diseño)
+    # ==========================================
+    ui.render_header(title="Data Repository", subtitle="Detailed Dataset View")
+    
+    # Filtros simples para la tabla
+    with st.container():
+        t1, t2 = st.columns(2)
+        with t1:
+            search_country = st.text_input("🔍 Buscar País", placeholder="Escribe para filtrar...")
+        with t2:
+            sort_by = st.selectbox("Ordenar por", ["date", "confirmed", "active", "deceased"], index=0)
+    
+    # Filtrado
+    df_table = df_full.copy()
+    if search_country:
+        df_table = df_table[df_table['country'].str.contains(search_country, case=False, na=False)]
+    
+    df_table = df_table.sort_values(by=sort_by, ascending=False)
+    
+    # Mostrar Tabla Estilizada
+    st.markdown("<div class='mb-4'></div>", unsafe_allow_html=True)
+    
+    # Usamos un contenedor blanco con sombra para la tabla
+    st.markdown(f"""
+    <div class="bg-white shadow-sm rounded-xl border border-gray-100 p-6">
+        <h3 class="font-bold text-lg text-gray-800 mb-4">Registros Detallados ({len(df_table):,.0f} filas)</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Dataframe de Streamlit (es interactivo y rápido)
+    st.dataframe(
+        df_table,
+        use_container_width=True,
+        column_config={
+            "date": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
+            "country": "País",
+            "continent": "Continente",
+            "confirmed": st.column_config.NumberColumn("Confirmados", format="%d"),
+            "active": st.column_config.NumberColumn("Activos", format="%d"),
+            "recovered": st.column_config.NumberColumn("Recuperados", format="%d"),
+            "deceased": st.column_config.NumberColumn("Fallecidos", format="%d"),
+        },
+        hide_index=True,
+        height=600
     )
-    st.plotly_chart(fig_line, use_container_width=True)
-    
-    # Gráfico de Barras de Nuevos Casos con Línea de Tendencia
-    if 'new_cases' in timeline_metrics.columns:
-        fig_bar = px.bar(
-            timeline_metrics, 
-            x='date', 
-            y='new_cases', 
-            title="Nuevos Casos Diarios", 
-            color_discrete_sequence=['#FF4B4B']
-        )
-        if 'new_cases_7day_avg' in timeline_metrics.columns:
-             fig_bar.add_scatter(
-                x=timeline_metrics['date'], 
-                y=timeline_metrics['new_cases_7day_avg'], 
-                mode='lines', 
-                name='Media 7 días',
-                line=dict(color='yellow', width=2)
-            )
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-    # --- NUEVA SECCIÓN: INSIGHTS DETALLADOS CON PESTAÑAS ---
-    st.header("🧠 Insights Automáticos")
-    
-    # Creamos 3 pestañas para organizar la información
-    tab1, tab2, tab3 = st.tabs(["🦠 Contagios", "⚰️ Fallecimientos", "🏥 Recuperaciones"])
-    
-    # --- PESTAÑA 1: CONTAGIOS ---
-    with tab1:
-        col_c1, col_c2 = st.columns(2)
-        # Insight de Pico Histórico
-        p_date = insights.get('new_cases_peak_date')
-        p_val = insights.get('new_cases_peak_val', 0)
-        if p_date:
-            col_c1.info(f"📅 **Récord de Contagios:** El **{p_date.strftime('%d/%m/%Y')}** se registró el máximo histórico del periodo con **{p_val:,.0f}** nuevos casos.")
-        
-        # Insight de Tendencia (Bajada Drástica vs Rebrote vs Estable)
-        if insights.get('new_cases_drop'):
-            col_c2.success("📉 **Freno en Contagios:** Los casos han caído drásticamente (>50%) en los últimos días respecto a la semana anterior.")
-        elif insights.get('is_rebounding'):
-            col_c2.error("⚠️ **Alerta de Rebrote:** Se observa un aumento sostenido en la media de casos en los últimos días.")
-        else:
-            col_c2.info("⚖️ **Tendencia Estable:** No hay cambios drásticos recientes (ni subidas explosivas ni bajadas repentinas) en el ritmo de contagios.")
-
-    # --- PESTAÑA 2: FALLECIMIENTOS ---
-    with tab2:
-        col_d1, col_d2 = st.columns(2)
-        # Insight de Pico
-        p_date = insights.get('new_deaths_peak_date')
-        p_val = insights.get('new_deaths_peak_val', 0)
-        if p_date:
-            col_d1.error(f"⚠️ **Día Crítico:** El **{p_date.strftime('%d/%m/%Y')}** fue el día más letal con **{p_val:,.0f}** fallecidos reportados.")
-        
-        # Insight de Tendencia
-        if insights.get('new_deaths_drop'):
-            col_d2.success("🕊️ **Alivio en Mortalidad:** Las muertes diarias han disminuido significativamente en los últimos días.")
-        else:
-            col_d2.warning("📊 **Sin cambios drásticos:** La tendencia de mortalidad se mantiene dentro del promedio reciente.")
-
-    # --- PESTAÑA 3: RECUPERACIONES ---
-    with tab3:
-        col_r1, col_r2 = st.columns(2)
-        # Insight de Pico
-        p_date = insights.get('new_recovered_peak_date')
-        p_val = insights.get('new_recovered_peak_val', 0)
-        if p_date:
-            col_r1.success(f"🏥 **Récord de Altas:** El **{p_date.strftime('%d/%m/%Y')}** se registró el mayor número de recuperados diarios: **{p_val:,.0f}**.")
-        
-        # Insight de Tendencia
-        if insights.get('new_recovered_drop'):
-            col_r2.warning("📉 **Ralentización de Altas:** El ritmo de pacientes recuperados ha bajado bruscamente recientemente.")
-        else:
-            col_r2.info("✅ **Ritmo Constante:** Las recuperaciones mantienen un ritmo estable.")
