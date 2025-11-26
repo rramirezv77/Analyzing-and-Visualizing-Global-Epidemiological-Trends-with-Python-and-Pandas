@@ -71,16 +71,16 @@ python -m pip install --upgrade pip
 python -m pip install streamlit
 ```
 
-### **3\. Ejecutar la app usando el módulo (evita depender del PATH)**
-
-```Python
-python -m streamlit run main.py
-```
-
-### **4\. Instalar módulo plotly (para ver los gráficos)**
+### **3\. Instalar módulo plotly (para ver los gráficos)**
 
 ```Python
 python -m pip install plotly
+```
+
+### **4\. Ejecutar la app usando el módulo (evita depender del PATH)**
+
+```Python
+python -m streamlit run main.py
 ```
 
 ### 5\. Librerías adicionales
