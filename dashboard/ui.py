@@ -20,7 +20,7 @@ def setup_page_style():
             color: {TEXT_COLOR};
         }}
         
-        /* RESET PLOTLY */
+        /* RESET GLOBAL PLOTLY */
         .js-plotly-plot, .plot-container {{
             height: 100% !important;
             width: 100% !important;
@@ -29,8 +29,7 @@ def setup_page_style():
         header {{ visibility: hidden; }}
         .stDeployButton, div[data-testid="stDecoration"] {{ display: none; }}
         
-        /* Ajuste Sidebar Nativo para que parezca el diseño HTML */
-        /* MODIFICADO: Padding izquierdo ajustado para sidebar más angosto */
+        /* Ajuste del contenido principal para el sidebar de 5rem */
         .block-container {{
             padding-left: 6rem !important; /* 5rem sidebar + 1rem espacio */
             padding-top: 1rem !important;
@@ -39,42 +38,23 @@ def setup_page_style():
             max-width: 100%;
         }}
         
-        /* Estilizar botones del sidebar para que sean cuadrados redondeados */
-        /* MODIFICADO: Botones más grandes para sidebar compacto */
-        section[data-testid="stSidebar"] .stButton button {{
-            width: 3.5rem;
-            height: 3.5rem;
-            border-radius: 0.75rem; /* Rounded-xl */
-            background-color: white;
-            border: none;
-            color: #7c3aed; /* Morado por defecto */
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto; /* Centrar horizontalmente */
+        /* Ocultar botones originales de Streamlit para que no se vean dobles */
+        div[data-testid="stSidebarContent"] .stButton button {{
+            visibility: hidden;
+            height: 0;
             padding: 0;
-            font-size: 1.5rem; /* Icono más grande */
+            margin: 0;
+            width: 0;
         }}
-        
-        /* Hover effect */
-        section[data-testid="stSidebar"] .stButton button:hover {{
-            background-color: #f3f4f6;
-            color: #6d28d9;
-            border: 1px solid #7c3aed;
-        }}
-        
-        /* Inputs */
-        div[data-baseweb="select"] > div, 
-        div[data-baseweb="input"] > div, 
-        div[data-baseweb="base-input"] {{
+
+        /* Estilos de inputs, tags y columns (Mantenidos) */
+        div[data-baseweb="select"] > div, div[data-baseweb="input"] > div, div[data-baseweb="base-input"] {{
             background-color: white !important;
             border: 1px solid #e5e7eb !important;
             color: {TEXT_COLOR} !important;
             border-radius: 0.5rem;
         }}
         div[data-baseweb="select"] span {{ color: {TEXT_COLOR} !important; }}
-        
         span[data-baseweb="tag"] {{ background-color: #ef4444 !important; }}
         span[data-baseweb="tag"] span {{ color: white !important; }}
         span[data-baseweb="tag"] svg {{ fill: white !important; color: white !important; }}
@@ -83,38 +63,86 @@ def setup_page_style():
             gap: 1rem !important;
         }}
 
-        /* --- SIDEBAR MODIFICADO --- */
+        /* --- SIDEBAR MODIFICADO (Contenedor principal) --- */
         section[data-testid="stSidebar"] {{
             width: 5rem !important; /* Ancho reducido a 5rem */
             background-color: #1f2937; /* Gris oscuro */
-            padding-top: 1rem;      /* Menos padding superior */
+            padding-top: 1rem;      
+            padding-left: 0.25rem; /* Pequeño ajuste para centrado */
+            padding-right: 0.25rem;
+        }}
+        
+        /* --- ESTILO DE BOTONES HTML --- */
+        .sidebar-btn-container {{
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            padding-top: 1rem;
+        }}
+        .sidebar-item {{
+            width: 4.2rem;
+            height: 4.2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: white; /* Color de fondo */
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }}
+        .sidebar-item:hover {{
+            background-color: #f3f4f6;
+            transform: scale(1.05);
+        }}
+        .sidebar-item svg {{
+            stroke: #7c3aed; /* Color del icono */
+            stroke-width: 2;
+            fill: none;
+            width: 1.5rem;
+            height: 1.5rem;
+        }}
+        
+        /* Estilo para los enlaces de navegación */
+        .sidebar-btn-container a {{
+            text-decoration: none; /* Quitar subrayado por defecto del enlace */
         }}
     </style>
     """, unsafe_allow_html=True)
 
 def render_sidebar():
     """
-    Renderiza el Sidebar usando componentes nativos de Streamlit 
-    para permitir interacción real (navegación).
+    Renderiza el Sidebar usando HTML para el diseño y ENLACES HTML (QUERY PARAMS) para la funcionalidad.
     """
+    
+    icon_dashboard = '<svg viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>'
+    icon_table = '<svg viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>'
+    
     with st.sidebar:
-        # --- MODIFICADO: Eliminado el logo morado ---
-        
-        # Espaciador inicial
+        # Espacio superior
         st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
         
-        # Botón 1: Dashboard
-        if st.button("📊", key="btn_dashboard", help="Ver Dashboard"):
-            st.session_state["page"] = "dashboard"
-            st.rerun()
-            
-        # Espaciador entre botones
-        st.write("") 
+        # --- Renderizado de HTML ---
         
-        # Botón 2: Tabla de Datos
-        if st.button("📁", key="btn_table", help="Ver Datos Detallados"):
-            st.session_state["page"] = "table"
-            st.rerun()
+        html_content = f"""
+        <div class="sidebar-btn-container">
+            <a href="?page=dashboard" target="_self">
+                 <div class="sidebar-item">
+                    {icon_dashboard}
+                 </div>
+            </a>
+            <a href="?page=table" target="_self">
+                 <div class="sidebar-item">
+                    {icon_table}
+                 </div>
+            </a>
+        </div>
+        """
+        st.markdown(html_content, unsafe_allow_html=True)
+
 
 def render_header(title="Dashboard", subtitle="COVID-19 Global Tracking"):
     header_html = f"""
@@ -231,7 +259,7 @@ def alert_card(is_rebounding):
     desc = "Se observa un aumento sostenido en la media de nuevos casos." if is_rebounding else "No se detectan patrones de crecimiento acelerado."
     
     html = f"""
-    <div style="background-color:{bg_hex}; border:1px solid {text_hex}; border-radius:0.75rem; padding:1.5rem; display:flex; align-items:center; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); height:100%;">
+    <div style="background-color:{bg_hex}; border:1px solid {text_hex}; border-radius:0.75rem; padding:1.5rem; display:flex; align-items:center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); height:100%;">
         <div style="font-size:2.5rem; margin-right:1.5rem;">{icon}</div>
         <div>
             <h4 style="margin:0; color:{text_hex}; font-weight:700; font-size:1.1rem; margin-bottom:0.25rem;">{title}</h4>
@@ -250,3 +278,24 @@ def get_chart_config():
         height=300,
         showlegend=False
     )
+    
+def render_top_banner(title):
+    """
+    Renderiza el banner oscuro prominente que ocupa todo el ancho, estilo Website Conversions.
+    """
+    banner_html = f"""
+    <div style="
+        background-color: #1f2937; 
+        color: white; 
+        padding: 1.2rem 2rem; 
+        margin-bottom: 2rem; 
+        border-radius: 0.75rem; 
+        display: flex; 
+        align-items: center;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border-left: 5px solid #7c3aed; /* Acento Morado */
+    ">
+        <h2 style="font-size: 1.5rem; font-weight: 700; margin: 0; letter-spacing: 0.05em; text-transform: uppercase;">{title}</h2>
+    </div>
+    """
+    st.markdown(banner_html, unsafe_allow_html=True)
